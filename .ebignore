@@ -1,0 +1,19 @@
+# The presence of this file makes the EB CLI bundle the working directory
+# as-is and skip git-based bundling.
+# Vestigial: deployment targets Railway (see DEPLOYMENT.md), not Elastic Beanstalk.
+
+# Build output — rebuilt inside the Docker image on the EB instance
+target/
+
+# IDE / OS noise
+.idea/
+*.iml
+.DS_Store
+
+# Local logs and Ticketmaster exports
+*.log
+ticketmaster_*.json
+ticketmaster_*.csv
+
+# Local env files (never ship secrets)
+.env

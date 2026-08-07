@@ -1,0 +1,28 @@
+# ---- Build output ----
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# ---- IDE ----
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- Logs ----
+*.log
+
+# ---- Local secrets / env ----
+.env
+*.env
+
+# ---- Ticketmaster local exports ----
+ticketmaster_*.json
+ticketmaster_*.csv

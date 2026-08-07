@@ -1,0 +1,20 @@
+# Build output — rebuilt inside the image
+target/
+
+# IDE / OS noise
+.idea/
+*.iml
+.DS_Store
+
+# Local logs and scratch
+*.log
+ticketmaster_*.json
+ticketmaster_*.csv
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
