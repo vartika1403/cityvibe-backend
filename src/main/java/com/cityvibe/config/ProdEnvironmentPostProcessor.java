@@ -59,6 +59,31 @@ public class ProdEnvironmentPostProcessor implements EnvironmentPostProcessor {
             return;
         }
         loadEnvFile(environment);
+        logDatasourceTarget(environment);
+    }
+
+    /**
+     * Reports the database this run will use, before Flyway tries to reach it.
+     *
+     * <p>A failed connection surfaces as "Communications link failure" without naming the host, so
+     * a deployment missing DB_URL looks identical to one pointing at an unreachable server. The
+     * datasource URL falls back to localhost, which no deployed container can reach, so that case
+     * is called out explicitly rather than left to be inferred.
+     */
+    private void logDatasourceTarget(ConfigurableEnvironment environment) {
+        String url = environment.getProperty("spring.datasource.url");
+        if (url == null || url.isBlank()) {
+            return;
+        }
+        String safe = url.replaceAll("(?i)(password=)[^&]*", "$1****");
+        log.info("Datasource target: " + safe);
+
+        String configured = environment.getProperty("DB_URL");
+        if (configured == null || configured.isBlank()) {
+            log.warn("DB_URL is not set, so the prod profile fell back to the local default above. "
+                    + "A deployed container has no database at that address; set DB_URL on the "
+                    + "service to point at the real one.");
+        }
     }
 
     private void loadEnvFile(ConfigurableEnvironment environment) {
