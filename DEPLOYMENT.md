@@ -80,7 +80,7 @@ instead, which exercises the database path anyway. Add
    `MYSQLHOST`, `MYSQLPORT`, `MYSQLDATABASE`, `MYSQLUSER`, `MYSQLPASSWORD`.
 5. On the **backend** service (not the MySQL one) → **Variables**:
    ```
-   DB_URL=jdbc:mysql://${{MySQL.MYSQLHOST}}:${{MySQL.MYSQLPORT}}/${{MySQL.MYSQLDATABASE}}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+   DB_URL=jdbc:mysql://${{MySQL.RAILWAY_TCP_PROXY_DOMAIN}}:${{MySQL.RAILWAY_TCP_PROXY_PORT}}/${{MySQL.MYSQLDATABASE}}?useSSL=true&allowPublicKeyRetrieval=true&serverTimezone=UTC
    DB_USERNAME=${{MySQL.MYSQLUSER}}
    DB_PASSWORD=${{MySQL.MYSQLPASSWORD}}
    TICKETMASTER_API_KEY=<your key>
@@ -88,6 +88,18 @@ instead, which exercises the database path anyway. Add
    ADMIN_SEED_TOKEN=<openssl rand -hex 32>
    CORS_ALLOWED_ORIGINS=https://<your-app-origin>
    ```
+   The proxy variables come from the **MySQL** service's own Variables tab;
+   `RAILWAY_TCP_PROXY_PORT` is a random high port, never 3306. Referencing them
+   rather than pasting literals keeps the config correct if Railway reassigns
+   the proxy.
+
+   The private host `${{MySQL.MYSQLHOST}}` (`mysql.railway.internal`) is the
+   alternative, and avoids sending traffic over the internet — but Railway's
+   private network is IPv6-only, and the JVM does not prefer IPv6 by default,
+   so it fails with "The driver has not received any packets from the server".
+   Use it only alongside `JAVA_TOOL_OPTIONS=-Djava.net.preferIPv6Addresses=true`
+   on the backend service.
+
 6. **Settings → Networking → Generate Domain** for a public URL.
 7. Verify: `curl https://<your-domain>/api/events` → should return **8 events**.
    An empty array means Flyway did not apply; check the deploy logs.
