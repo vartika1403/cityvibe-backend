@@ -24,8 +24,11 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.PropertiesPropertySource;
 
 /**
- * Prepares the environment for the prod profile: loads a local {@code prod.env} if one exists, then
- * fails fast when the datasource variables are still missing.
+ * Loads a local {@code prod.env} into the environment when the prod profile is active.
+ *
+ * <p>This is how secrets without defaults — {@code SERPAPI_API_KEY}, {@code ADMIN_SEED_TOKEN} —
+ * reach a local prod run. The datasource properties fall back to localhost in
+ * {@code application-prod.properties}, so they work without this file.
  *
  * <p>Loading happens here rather than through {@code spring.config.import} because that resolves
  * relative paths against the process working directory, so the file was found when launching from
@@ -33,17 +36,13 @@ import org.springframework.core.env.PropertiesPropertySource;
  * elsewhere. This searches the working directory and the directory holding the running classes or
  * jar, plus a few parents of each, so the launch location stops mattering.
  *
- * <p>The file is added as the lowest-precedence property source: real environment variables and
- * system properties continue to win, which is what production platforms rely on.
- *
- * <p>Without the file, an unresolvable {@code ${DB_URL}} would not fail on its own — Spring's
- * binder leaves unresolved placeholders as literal text, so the string reaches the JDBC driver and
- * surfaces as an opaque Flyway error. The check below names the missing variables instead.
+ * <p>The file is added as the lowest-precedence property source: real environment variables,
+ * system properties and command-line arguments continue to win, which is what production platforms
+ * rely on.
  */
 public class ProdEnvironmentPostProcessor implements EnvironmentPostProcessor {
 
     private static final String FILE_NAME = "prod.env";
-    private static final String[] REQUIRED_IN_PROD = {"DB_URL", "DB_USERNAME", "DB_PASSWORD"};
 
     /** How far to walk up from each starting directory (covers target/classes -> project root). */
     private static final int MAX_PARENTS = 3;
@@ -60,7 +59,6 @@ public class ProdEnvironmentPostProcessor implements EnvironmentPostProcessor {
             return;
         }
         loadEnvFile(environment);
-        checkRequiredProperties(environment);
     }
 
     private void loadEnvFile(ConfigurableEnvironment environment) {
@@ -133,29 +131,5 @@ public class ProdEnvironmentPostProcessor implements EnvironmentPostProcessor {
             // An exotic classloader may have no file-backed location at all.
             return null;
         }
-    }
-
-    private void checkRequiredProperties(ConfigurableEnvironment environment) {
-        List<String> searched = new ArrayList<>();
-        for (Path dir : candidateDirectories()) {
-            searched.add(dir.toString());
-        }
-        List<String> missing = new ArrayList<>();
-        for (String name : REQUIRED_IN_PROD) {
-            String value = environment.getProperty(name);
-            if (value == null || value.isBlank()) {
-                missing.add(name);
-            }
-        }
-        if (missing.isEmpty()) {
-            return;
-        }
-        throw new IllegalStateException(
-                "The 'prod' profile requires these environment variables, which are missing or blank: "
-                        + String.join(", ", missing)
-                        + ". Set them, add them to a " + FILE_NAME + " file in one of the directories "
-                        + "searched below, or run with the dev profile (SPRING_PROFILES_ACTIVE=dev) "
-                        + "to use the local MySQL defaults. Searched for " + FILE_NAME + " in: "
-                        + String.join(", ", searched));
     }
 }
