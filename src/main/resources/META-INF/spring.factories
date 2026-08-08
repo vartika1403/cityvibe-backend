@@ -1,2 +1,2 @@
 org.springframework.boot.env.EnvironmentPostProcessor=\
-com.cityvibe.config.RequiredProdPropertiesValidator
+com.cityvibe.config.ProdEnvironmentPostProcessor
