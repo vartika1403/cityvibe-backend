@@ -26,9 +26,9 @@ import org.springframework.core.env.PropertiesPropertySource;
 /**
  * Loads a local {@code prod.env} into the environment when the prod profile is active.
  *
- * <p>This is how secrets without defaults — {@code SERPAPI_API_KEY}, {@code ADMIN_SEED_TOKEN} —
- * reach a local prod run. The datasource properties fall back to localhost in
- * {@code application-prod.properties}, so they work without this file.
+ * <p>This is how a local prod run gets its configuration: the datasource variables, which have no
+ * fallback, and the secrets that have none either ({@code SERPAPI_API_KEY},
+ * {@code ADMIN_SEED_TOKEN}). Startup then fails if the datasource variables are still absent.
  *
  * <p>Loading happens here rather than through {@code spring.config.import} because that resolves
  * relative paths against the process working directory, so the file was found when launching from
@@ -43,6 +43,7 @@ import org.springframework.core.env.PropertiesPropertySource;
 public class ProdEnvironmentPostProcessor implements EnvironmentPostProcessor {
 
     private static final String FILE_NAME = "prod.env";
+    private static final String[] REQUIRED_IN_PROD = {"DB_URL", "DB_USERNAME", "DB_PASSWORD"};
 
     /** How far to walk up from each starting directory (covers target/classes -> project root). */
     private static final int MAX_PARENTS = 3;
@@ -59,16 +60,45 @@ public class ProdEnvironmentPostProcessor implements EnvironmentPostProcessor {
             return;
         }
         loadEnvFile(environment);
+        checkRequiredProperties(environment);
         logDatasourceTarget(environment);
+    }
+
+    /**
+     * Refuses to start when the datasource variables are absent, naming the ones that are.
+     *
+     * <p>Two failure modes make this worth checking explicitly. Without a fallback, Spring's binder
+     * leaves the unresolved {@code ${DB_URL}} as literal text, which reaches the driver and is
+     * reported as a rejected JDBC URL. With a localhost fallback, a deployment missing the variable
+     * connects to its own container and reports a communications failure. Both describe the
+     * database rather than the configuration that is actually wrong.
+     */
+    private void checkRequiredProperties(ConfigurableEnvironment environment) {
+        List<String> missing = new ArrayList<>();
+        for (String name : REQUIRED_IN_PROD) {
+            String value = environment.getProperty(name);
+            if (value == null || value.isBlank()) {
+                missing.add(name);
+            }
+        }
+        if (missing.isEmpty()) {
+            return;
+        }
+        throw new IllegalStateException(
+                "The 'prod' profile requires these environment variables, which are missing or "
+                        + "blank: " + String.join(", ", missing)
+                        + ". On a hosting platform, set them on the application service. Locally, "
+                        + "put them in a " + FILE_NAME + " file beside the project or jar, or run "
+                        + "with the dev profile (SPRING_PROFILES_ACTIVE=dev) to use the local MySQL "
+                        + "defaults.");
     }
 
     /**
      * Reports the database this run will use, before Flyway tries to reach it.
      *
      * <p>A failed connection surfaces as "Communications link failure" without naming the host, so
-     * a deployment missing DB_URL looks identical to one pointing at an unreachable server. The
-     * datasource URL falls back to localhost, which no deployed container can reach, so that case
-     * is called out explicitly rather than left to be inferred.
+     * a deployment pointing at an unreachable server gives no clue which server that was. Stating
+     * the target up front turns that into a one-line diagnosis.
      */
     private void logDatasourceTarget(ConfigurableEnvironment environment) {
         String url = environment.getProperty("spring.datasource.url");
@@ -78,12 +108,6 @@ public class ProdEnvironmentPostProcessor implements EnvironmentPostProcessor {
         String safe = url.replaceAll("(?i)(password=)[^&]*", "$1****");
         log.info("Datasource target: " + safe);
 
-        String configured = environment.getProperty("DB_URL");
-        if (configured == null || configured.isBlank()) {
-            log.warn("DB_URL is not set, so the prod profile fell back to the local default above. "
-                    + "A deployed container has no database at that address; set DB_URL on the "
-                    + "service to point at the real one.");
-        }
     }
 
     private void loadEnvFile(ConfigurableEnvironment environment) {
