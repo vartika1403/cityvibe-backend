@@ -10,7 +10,6 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "events")
 public class Event {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name ="id")
@@ -30,6 +29,9 @@ public class Event {
 
     // ISO-8601 string, e.g. "2026-07-15T19:30:00"
     private String dateTime;
+
+    // Free-text, e.g. "2h 30m". Restored by V4 after V2 dropped it as unused.
+    private String duration;
 
     private String venueName;
 
@@ -73,6 +75,9 @@ public class Event {
 
     public String getDateTime() { return dateTime; }
     public void setDateTime(String dateTime) { this.dateTime = dateTime; }
+
+    public String getDuration() { return duration; }
+    public void setDuration(String duration) { this.duration = duration; }
 
     public String getVenueName() { return venueName; }
     public void setVenueName(String venueName) { this.venueName = venueName; }
