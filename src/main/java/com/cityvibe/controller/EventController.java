@@ -57,6 +57,7 @@ public class EventController {
         event.setTitle(trimmed(request.title()));
         event.setCategory(trimmed(request.category()));
         event.setDescription(trimmed(request.description()));
+        event.setImageUrl(trimmed(request.imageUrl()));
         event.setDateTime(trimmed(request.dateTime()));
         event.setDuration(trimmed(request.duration()));
         event.setVenueName(trimmed(request.venueName()));
